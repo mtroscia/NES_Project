@@ -28,19 +28,36 @@
 #include "contiki.h"
 #include <stdio.h>
 #include "sys/etimer.h"
-#include "dev/button-sensor.h"
+#include "dev/sht11/sht11-sensor.h"
 #include "dev/leds.h"
-
 #include "net/rime/rime.h"
 
 #define MAX_RETRANSMISSIONS 5
 
-int command;
+static int command;
+static int tempMeasurements[5] = {-100, -100, -100, -100, -100};
+
+PROCESS(BaseProcess, "Base process");
+PROCESS(TempProcess, "Temperature monitoring process");
+PROCESS(SendTempProcess, "Send temperature process");
+
+static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
+	int* data = (int*)packetbuf_dataptr();
+	command = *data;
+	printf("broadcast message received from %d.%d\nCommand: %d\n", from->u8[0], from->u8[1], command); //sender address + communication buffer
+}
+
+static void broadcast_sent(struct broadcast_conn *c, int status, int num_tx){
+	printf("broadcast message sent (status %d), transmission number %d\n", status, num_tx); //status = if the communication was successful or not; number of necessary retransmissions
+}
 
 static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8_t seqno) {
 	int* data = (int*)packetbuf_dataptr();
-	int command = *data;
+	command = *data;
 	printf("runicast message received from %d.%d, seqno %d\nCommand: %d\n", from->u8[0], from->u8[1], seqno, command);
+	if (command==4) {
+		process_start(&SendTempProcess, NULL);
+	}
 }
 
 //when the ACK is received
@@ -52,20 +69,74 @@ static void timedout_runicast(struct runicast_conn *c, const linkaddr_t *to, uin
 	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n", to->u8[0], to->u8[1], retransmissions);
 }
 
+static const struct broadcast_callbacks broadcast_call = {broadcast_recv, broadcast_sent}; //Be careful to the order: receive callback always before send one (you should always specify both)
+static struct broadcast_conn broadcast;
 static const struct runicast_callbacks runicast_calls = {recv_runicast, sent_runicast, timedout_runicast};
 static struct runicast_conn runicast;
 
-PROCESS(BaseProcess, "Base process");
-AUTOSTART_PROCESSES(&BaseProcess);
+AUTOSTART_PROCESSES(&BaseProcess, &TempProcess);
 
 PROCESS_THREAD(BaseProcess, ev, data) {
+	PROCESS_EXITHANDLER(broadcast_close(&broadcast));
 	PROCESS_EXITHANDLER(runicast_close(&runicast));
 
 	PROCESS_BEGIN();
+	//process_start(&TempProcess, NULL);
 
+	broadcast_open(&broadcast, 129, &broadcast_call);
 	runicast_open(&runicast, 144, &runicast_calls);
 
 	PROCESS_WAIT_EVENT_UNTIL(0);
 
 	PROCESS_END();
 }
+
+PROCESS_THREAD(TempProcess, ev, data) {
+	static struct etimer et;
+	int i = 0;
+	int temp;
+
+	PROCESS_BEGIN();
+
+	etimer_set(&et, 10*CLOCK_SECOND);
+
+	while(1) {
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		SENSORS_ACTIVATE(sht11_sensor);
+		temp = (sht11_sensor.value(SHT11_SENSOR_TEMP)/10-396)/10;
+		SENSORS_DEACTIVATE(sht11_sensor);
+		tempMeasurements[i]=temp;
+		i=(i+1)%5;
+		printf("Temperature: %d\n", temp);
+		etimer_reset(&et);
+	}
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(SendTempProcess, ev, data) {
+	PROCESS_BEGIN();
+
+	int sum = 0;
+	int elem = 0;
+	int i;
+	for (i=0; i<5; i++) {
+		if (tempMeasurements[i]!=-100) {
+			sum+=tempMeasurements[i];
+			elem++;
+		}
+	}
+	int avg = -100;
+	if (elem!=0)
+		avg = sum/elem;
+	if(!runicast_is_transmitting(&runicast)){
+		linkaddr_t recv;
+		recv.u8[0] = 3;
+		recv.u8[1] = 0;
+		packetbuf_copyfrom((void*)&avg, 1);
+		printf("Sending temperature %d to %d.%d\n", avg, recv.u8[0], recv.u8[1]);
+		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
+	}
+	PROCESS_END();
+}
+

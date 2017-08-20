@@ -50,27 +50,49 @@
 
 #define MAX_RETRANSMISSIONS 5
 
+static int lastCommand = 0;
+
+static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
+	printf("broadcast message received from %d.%d\n", from->u8[0], from->u8[1]); //sender address + communication buffer
+}
+
+static void broadcast_sent(struct broadcast_conn *c, int status, int num_tx){
+	printf("broadcast message sent (status %d), transmission number %d\n", status, num_tx); //status = if the communication was successful or not; number of necessary retransmissions
+}
+
 static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8_t seqno) {
-	printf("runicast message received from %d.%d, seqno %d\nCommand: %d\n", from->u8[0], from->u8[1], seqno);
+	printf("runicast message received from %d.%d, seqno %d\n", from->u8[0], from->u8[1], seqno);
+	int* data = (int*)packetbuf_dataptr();
+	int measure = *data;
+	if (lastCommand==4) {
+		if (measure==-100)
+			printf("No measurement available yet\n");
+		else
+			printf("Temperature: %d\n", measure);
+	} else if (lastCommand==5) {
+		printf("Light: %d\n", measure);
+	}
 }
 
 static void sent_runicast(struct runicast_conn *c, const linkaddr_t *to, uint8_t retransmissions) {
 	printf("runicast message sent to %d.%d, retransmissions %d\n", to->u8[0], to->u8[1], retransmissions);
 }
 
-
 static void timedout_runicast(struct runicast_conn *c, const linkaddr_t *to, uint8_t retransmissions) {
 	printf("runicast message timed out when sending to %d.%d, retransmissions %d\n", to->u8[0], to->u8[1], retransmissions);
 }
 
+static const struct broadcast_callbacks broadcast_call = {broadcast_recv, broadcast_sent}; //Be careful to the order: receive callback always before send one (you should always specify both)
+static struct broadcast_conn broadcast;
 static const struct runicast_callbacks runicast_calls = {recv_runicast, sent_runicast, timedout_runicast};
 static struct runicast_conn runicast1, runicast2;
 
-PROCESS(waitCommand, "waitCommand");
-AUTOSTART_PROCESSES(&waitCommand);
+PROCESS(WaitCommand, "Wait command");
+AUTOSTART_PROCESSES(&WaitCommand);
 
-PROCESS_THREAD(waitCommand, ev, data) {
+PROCESS_THREAD(WaitCommand, ev, data) {
 
+	PROCESS_EXITHANDLER(broadcast_close(&broadcast));
 	PROCESS_EXITHANDLER(runicast_close(&runicast1));
 	PROCESS_EXITHANDLER(runicast_close(&runicast2));
 
@@ -79,6 +101,7 @@ PROCESS_THREAD(waitCommand, ev, data) {
 	static struct etimer et;
 	static int num = 0;
 
+	broadcast_open(&broadcast, 129, &broadcast_call);
 	runicast_open(&runicast1, 144, &runicast_calls);
 	runicast_open(&runicast2, 145, &runicast_calls);
 	SENSORS_ACTIVATE(button_sensor);
@@ -89,18 +112,20 @@ PROCESS_THREAD(waitCommand, ev, data) {
 			num++;
 			etimer_set(&et, 4*CLOCK_SECOND);
 		} else if (etimer_expired(&et)) {
+			lastCommand = num;
 			if(!runicast_is_transmitting(&runicast1) && !runicast_is_transmitting(&runicast2)) {
 				linkaddr_t recv;
 				if (num == 1 || num == 3) {
 					packetbuf_copyfrom((void*)&num, 1);
-					recv.u8[0] = 1;
+					/*recv.u8[0] = 1;
 					recv.u8[1] = 0;
 					printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
 					runicast_send(&runicast1, &recv, MAX_RETRANSMISSIONS);
 					packetbuf_copyfrom((void*)&num, 1);
 					recv.u8[0] = 2;
 					printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
-					runicast_send(&runicast2, &recv, MAX_RETRANSMISSIONS);
+					runicast_send(&runicast2, &recv, MAX_RETRANSMISSIONS);*/
+					broadcast_send(&broadcast);
 				} else {
 					packetbuf_copyfrom((void*)&num, 1);
 					if (num == 4) {
