@@ -42,6 +42,9 @@ PROCESS(SendLightProcess, "Send light process");
 PROCESS(LockUnlockProcess, "Lock and unlock process");
 PROCESS(AlarmProcess, "Alarm process");
 PROCESS(StopAlarmProcess, "Stop alarm process");
+PROCESS(BlinkingProcess, "Blinking process");
+PROCESS(StopBlinkingProcess, "Blinking process");
+PROCESS(OpenGateProcess, "Open door process");
 
 static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 	int* data = (int*)packetbuf_dataptr();
@@ -52,6 +55,8 @@ static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 			process_start(&AlarmProcess, NULL);
 		else
 			process_start(&StopAlarmProcess, NULL);
+	} else if (command==3) {
+		process_start(&OpenGateProcess, NULL);
 	}
 }
 
@@ -149,7 +154,7 @@ PROCESS_THREAD(AlarmProcess, ev, data) {
 
 	while(1){
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_alarm));
-		leds_toggle(LEDS_BLUE);
+		leds_toggle(LEDS_ALL);
 		etimer_reset(&et_alarm);
 	}
 
@@ -166,6 +171,52 @@ PROCESS_THREAD(StopAlarmProcess, ev, data) {
 
 	//restore the led state
 	leds_set(ledStatus);
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(BlinkingProcess, ev, data) {
+	static struct etimer et_blink;
+	PROCESS_BEGIN();
+
+	etimer_set(&et_blink, CLOCK_SECOND);
+
+	while(1){
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_blink));
+		leds_toggle(LEDS_BLUE);
+		etimer_reset(&et_blink);
+	}
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(StopBlinkingProcess, ev, data) {
+	static struct etimer et_stop_blinking;
+	PROCESS_BEGIN();
+
+	etimer_set(&et_stop_blinking, 16*CLOCK_SECOND);
+	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_stop_blinking));
+	process_exit(&BlinkingProcess);
+
+	//restore the led state
+	leds_set(ledStatus);
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(OpenGateProcess, ev, data) {
+	static struct etimer et_gate;
+	PROCESS_BEGIN();
+
+	ledStatus = leds_get();
+
+	etimer_set(&et_gate, 14*CLOCK_SECOND);
+
+	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_gate));
+
+	//start blinking process
+	process_start(&BlinkingProcess, NULL);
+	process_start(&StopBlinkingProcess, NULL);
 
 	PROCESS_END();
 }

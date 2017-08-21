@@ -45,6 +45,8 @@ PROCESS(TempProcess, "Temperature monitoring process");
 PROCESS(SendTempProcess, "Send temperature process");
 PROCESS(AlarmProcess, "Alarm process");
 PROCESS(StopAlarmProcess, "Stop alarm process");
+PROCESS(BlinkingProcess, "Blinking process");
+PROCESS(OpenDoorProcess, "Open door process");
 
 static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 	int* data = (int*)packetbuf_dataptr();
@@ -55,6 +57,8 @@ static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 			process_start(&AlarmProcess, NULL);
 		else
 			process_start(&StopAlarmProcess, NULL);
+	} else if (command==3) {
+		process_start(&OpenDoorProcess, NULL);
 	}
 }
 
@@ -181,7 +185,7 @@ PROCESS_THREAD(AlarmProcess, ev, data) {
 
 	while(1){
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_alarm));
-		leds_toggle(LEDS_BLUE);
+		leds_toggle(LEDS_ALL);
 		etimer_reset(&et_alarm);
 	}
 
@@ -195,6 +199,40 @@ PROCESS_THREAD(StopAlarmProcess, ev, data) {
 
 	//kill blinking process
 	process_exit(&AlarmProcess);
+
+	//restore the led state
+	leds_set(ledStatus);
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(BlinkingProcess, ev, data) {
+	static struct etimer et_blink;
+	PROCESS_BEGIN();
+
+	etimer_set(&et_blink, CLOCK_SECOND);
+
+	while(1){
+			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_blink));
+			leds_toggle(LEDS_BLUE);
+			etimer_reset(&et_blink);
+		}
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(OpenDoorProcess, ev, data) {
+	static struct etimer et_door;
+	PROCESS_BEGIN();
+
+	ledStatus = leds_get();
+
+	//start blinking process
+	process_start(&BlinkingProcess, NULL);
+	etimer_set(&et_door, 16*CLOCK_SECOND);
+
+	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_door));
+	process_exit(&BlinkingProcess);
 
 	//restore the led state
 	leds_set(ledStatus);
