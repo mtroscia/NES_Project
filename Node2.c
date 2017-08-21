@@ -33,9 +33,11 @@
 #define MAX_RETRANSMISSIONS 5
 
 static int command;
+static int unlocked;
 
 PROCESS(BaseProcess, "Base process");
 PROCESS(SendLightProcess, "Send light process");
+PROCESS(LockUnlockProcess, "Lock and unlock process");
 
 static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 	int* data = (int*)packetbuf_dataptr();
@@ -51,7 +53,9 @@ static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8
 	int* data = (int*)packetbuf_dataptr();
 	command = *data;
 	printf("runicast message received from %d.%d, seqno %d\nCommand: %d\n", from->u8[0], from->u8[1], seqno, command);
-	if (command==5) {
+	if (command==2) {
+		process_start(&LockUnlockProcess, NULL);
+	} else if (command==5) {
 		process_start(&SendLightProcess, NULL);
 	}
 }
@@ -81,6 +85,10 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 	broadcast_open(&broadcast, 129, &broadcast_call);
 	runicast_open(&runicast, 145, &runicast_calls);
 
+	//start with unklocked gate
+	unlocked=1;
+	leds_on(LEDS_GREEN);
+
 	PROCESS_WAIT_EVENT_UNTIL(0);
 
 	PROCESS_END();
@@ -90,9 +98,8 @@ PROCESS_THREAD(SendLightProcess, ev, data) {
 	PROCESS_BEGIN();
 
 	SENSORS_ACTIVATE(light_sensor);
-
+	//adjust the sensed value
 	int light = 10*light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC)/7;
-
 	SENSORS_DEACTIVATE(light_sensor);
 
 	if(!runicast_is_transmitting(&runicast)){
@@ -100,9 +107,19 @@ PROCESS_THREAD(SendLightProcess, ev, data) {
 		recv.u8[0] = 3;
 		recv.u8[1] = 0;
 		packetbuf_copyfrom((void*)&light, 1);
-		printf("Sending light %d to %d.%d\n", light, recv.u8[0], recv.u8[1]);
+		printf("Sending light %d lux to %d.%d\n", light, recv.u8[0], recv.u8[1]);
 		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 	}
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(LockUnlockProcess, ev, data) {
+	PROCESS_BEGIN();
+
+	unlocked=(unlocked==1)?0:1;
+	leds_toggle(LEDS_GREEN);
+	leds_toggle(LEDS_RED);
 
 	PROCESS_END();
 }

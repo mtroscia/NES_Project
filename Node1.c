@@ -30,6 +30,7 @@
 #include "sys/etimer.h"
 #include "dev/sht11/sht11-sensor.h"
 #include "dev/leds.h"
+#include "dev/button-sensor.h"
 #include "net/rime/rime.h"
 
 #define MAX_RETRANSMISSIONS 5
@@ -80,13 +81,25 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 	PROCESS_EXITHANDLER(broadcast_close(&broadcast));
 	PROCESS_EXITHANDLER(runicast_close(&runicast));
 
+	int outerLightsOff;
+
 	PROCESS_BEGIN();
 	//process_start(&TempProcess, NULL);
 
 	broadcast_open(&broadcast, 129, &broadcast_call);
 	runicast_open(&runicast, 144, &runicast_calls);
 
-	PROCESS_WAIT_EVENT_UNTIL(0);
+	SENSORS_ACTIVATE(button_sensor);
+	//start with outer light off
+	outerLightsOff=1;
+	leds_on(LEDS_RED);
+
+	while(1){
+		PROCESS_WAIT_EVENT_UNTIL(ev==sensors_event && data == &button_sensor);
+		outerLightsOff=(outerLightsOff==1)?0:1;
+		leds_toggle(LEDS_GREEN);
+		leds_toggle(LEDS_RED);
+	}
 
 	PROCESS_END();
 }
@@ -102,12 +115,15 @@ PROCESS_THREAD(TempProcess, ev, data) {
 
 	while(1) {
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
 		SENSORS_ACTIVATE(sht11_sensor);
+		//adjust the sensed value
 		temp = (sht11_sensor.value(SHT11_SENSOR_TEMP)/10-396)/10;
 		SENSORS_DEACTIVATE(sht11_sensor);
+
 		tempMeasurements[i]=temp;
 		i=(i+1)%5;
-		printf("Temperature: %d\n", temp);
+		printf("Temperature: %d C\n", temp);
 		etimer_reset(&et);
 	}
 
@@ -134,7 +150,7 @@ PROCESS_THREAD(SendTempProcess, ev, data) {
 		recv.u8[0] = 3;
 		recv.u8[1] = 0;
 		packetbuf_copyfrom((void*)&avg, 1);
-		printf("Sending temperature %d to %d.%d\n", avg, recv.u8[0], recv.u8[1]);
+		printf("Sending temperature %d C to %d.%d\n", avg, recv.u8[0], recv.u8[1]);
 		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 	}
 	PROCESS_END();

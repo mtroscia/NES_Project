@@ -68,9 +68,9 @@ static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8
 		if (measure==-100)
 			printf("No measurement available yet\n");
 		else
-			printf("Temperature: %d\n", measure);
+			printf("Temperature: %d C\n", measure);
 	} else if (lastCommand==5) {
-		printf("Light: %d\n", measure);
+		printf("Light: %d lux\n", measure);
 	}
 }
 

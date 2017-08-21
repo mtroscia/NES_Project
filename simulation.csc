@@ -177,7 +177,7 @@
       <coloring />
     </plugin_config>
     <width>760</width>
-    <z>2</z>
+    <z>6</z>
     <height>240</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
@@ -194,7 +194,7 @@
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
     <width>1160</width>
-    <z>5</z>
+    <z>8</z>
     <height>166</height>
     <location_x>0</location_x>
     <location_y>494</location_y>
@@ -206,7 +206,7 @@
       <decorations>true</decorations>
     </plugin_config>
     <width>480</width>
-    <z>4</z>
+    <z>7</z>
     <height>160</height>
     <location_x>680</location_x>
     <location_y>0</location_y>
@@ -220,9 +220,48 @@
     </plugin_config>
     <width>350</width>
     <z>1</z>
-    <height>300</height>
+    <height>245</height>
     <location_x>800</location_x>
     <location_y>53</location_y>
+  </plugin>
+  <plugin>
+    org.contikios.cooja.plugins.MoteInterfaceViewer
+    <mote_arg>1</mote_arg>
+    <plugin_config>
+      <interface>Sky LED</interface>
+      <scrollpos>0,0</scrollpos>
+    </plugin_config>
+    <width>350</width>
+    <z>5</z>
+    <height>300</height>
+    <location_x>803</location_x>
+    <location_y>352</location_y>
+  </plugin>
+  <plugin>
+    org.contikios.cooja.plugins.MoteInterfaceViewer
+    <mote_arg>0</mote_arg>
+    <plugin_config>
+      <interface>Sky LED</interface>
+      <scrollpos>0,0</scrollpos>
+    </plugin_config>
+    <width>350</width>
+    <z>4</z>
+    <height>127</height>
+    <location_x>418</location_x>
+    <location_y>350</location_y>
+  </plugin>
+  <plugin>
+    org.contikios.cooja.plugins.MoteInterfaceViewer
+    <mote_arg>0</mote_arg>
+    <plugin_config>
+      <interface>Button</interface>
+      <scrollpos>0,0</scrollpos>
+    </plugin_config>
+    <width>350</width>
+    <z>2</z>
+    <height>118</height>
+    <location_x>417</location_x>
+    <location_y>483</location_y>
   </plugin>
 </simconf>
 
