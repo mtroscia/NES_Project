@@ -34,15 +34,25 @@
 
 static int command;
 static int unlocked;
+static int alarm = 0;
+static unsigned char ledStatus;
 
 PROCESS(BaseProcess, "Base process");
 PROCESS(SendLightProcess, "Send light process");
 PROCESS(LockUnlockProcess, "Lock and unlock process");
+PROCESS(AlarmProcess, "Alarm process");
+PROCESS(StopAlarmProcess, "Stop alarm process");
 
 static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
 	int* data = (int*)packetbuf_dataptr();
 	command = *data;
 	printf("broadcast message received from %d.%d\nCommand: %d\n", from->u8[0], from->u8[1], command); //sender address + communication buffer
+	if (command==1) {
+		if (alarm==0)
+			process_start(&AlarmProcess, NULL);
+		else
+			process_start(&StopAlarmProcess, NULL);
+	}
 }
 
 static void broadcast_sent(struct broadcast_conn *c, int status, int num_tx){
@@ -120,6 +130,42 @@ PROCESS_THREAD(LockUnlockProcess, ev, data) {
 	unlocked=(unlocked==1)?0:1;
 	leds_toggle(LEDS_GREEN);
 	leds_toggle(LEDS_RED);
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(AlarmProcess, ev, data) {
+	static struct etimer et_alarm;
+
+	PROCESS_BEGIN();
+
+	alarm = 1;
+
+	//save the led state
+	ledStatus = leds_get();
+	leds_off(LEDS_ALL);
+
+	etimer_set(&et_alarm, CLOCK_SECOND);
+
+	while(1){
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_alarm));
+		leds_toggle(LEDS_BLUE);
+		etimer_reset(&et_alarm);
+	}
+
+	PROCESS_END();
+}
+
+PROCESS_THREAD(StopAlarmProcess, ev, data) {
+	PROCESS_BEGIN();
+
+	alarm = 0;
+
+	//kill blinking process
+	process_exit(&AlarmProcess);
+
+	//restore the led state
+	leds_set(ledStatus);
 
 	PROCESS_END();
 }
