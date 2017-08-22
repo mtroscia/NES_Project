@@ -50,32 +50,52 @@
 
 #define MAX_RETRANSMISSIONS 5
 
-static int lastCommand = 0;
+static int last_command = 0;
 
 static void broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from){
-	printf("broadcast message received from %d.%d\n", from->u8[0], from->u8[1]); //sender address + communication buffer
+	printf("broadcast message received from %d.%d\n", from->u8[0], from->u8[1]);
 }
 
 static void broadcast_sent(struct broadcast_conn *c, int status, int num_tx){
 	printf("broadcast message sent (status %d), transmission number %d\n", status, num_tx); //status = if the communication was successful or not; number of necessary retransmissions
+	printf("\nPOSSIBLE COMMANDS\n");
+	printf("1. Activate/deactivate the alarm signal\n");
+	printf("2. Lock/unlock the gate\n");
+	printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
+	printf("4. Obtain the average of the last 5 temperature values\n");
+	printf("5. Obtain the external light value\n\n");
 }
 
 static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8_t seqno) {
 	printf("runicast message received from %d.%d, seqno %d\n", from->u8[0], from->u8[1], seqno);
 	int* data = (int*)packetbuf_dataptr();
 	int measure = *data;
-	if (lastCommand==4) {
+	if (last_command==4) {
 		if (measure==-100)
 			printf("No measurement available yet\n");
 		else
 			printf("Temperature: %d C\n", measure);
-	} else if (lastCommand==5) {
+	} else if (last_command==5) {
 		printf("Light: %d lux\n", measure);
 	}
+	printf("\nPOSSIBLE COMMANDS\n");
+	printf("1. Activate/deactivate the alarm signal\n");
+	printf("2. Lock/unlock the gate\n");
+	printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
+	printf("4. Obtain the average of the last 5 temperature values\n");
+	printf("5. Obtain the external light value\n\n");
 }
 
 static void sent_runicast(struct runicast_conn *c, const linkaddr_t *to, uint8_t retransmissions) {
 	printf("runicast message sent to %d.%d, retransmissions %d\n", to->u8[0], to->u8[1], retransmissions);
+	if (last_command==2) {
+		printf("\nPOSSIBLE COMMANDS\n");
+		printf("1. Activate/deactivate the alarm signal\n");
+		printf("2. Lock/unlock the gate\n");
+		printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
+		printf("4. Obtain the average of the last 5 temperature values\n");
+		printf("5. Obtain the external light value\n\n");
+	}
 }
 
 static void timedout_runicast(struct runicast_conn *c, const linkaddr_t *to, uint8_t retransmissions) {
@@ -99,25 +119,33 @@ PROCESS_THREAD(WaitCommand, ev, data) {
 	PROCESS_BEGIN();
 
 	static struct etimer et;
-	static int num = 0;
+	static int num_button_presses = 0;
 
 	broadcast_open(&broadcast, 129, &broadcast_call);
 	runicast_open(&runicast1, 144, &runicast_calls);
 	runicast_open(&runicast2, 145, &runicast_calls);
 	SENSORS_ACTIVATE(button_sensor);
 
+	printf("\nPOSSIBLE COMMANDS\n");
+	printf("1. Activate/deactivate the alarm signal\n");
+	printf("2. Lock/unlock the gate\n");
+	printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
+	printf("4. Obtain the average of the last 5 temperature values\n");
+	printf("5. Obtain the external light value\n\n");
+
 	while(1) {
 		PROCESS_WAIT_EVENT();
-		if (ev==sensors_event && data == &button_sensor) {
-			num++;
+		if (ev==sensors_event && data==&button_sensor) {
+			num_button_presses++;
 			etimer_set(&et, 4*CLOCK_SECOND);
 		} else if (etimer_expired(&et)) {
-			lastCommand = num;
+			last_command = num_button_presses;
 			if(!runicast_is_transmitting(&runicast1) && !runicast_is_transmitting(&runicast2)) {
 				linkaddr_t recv;
-				if (num == 1 || num == 3) {
-					packetbuf_copyfrom((void*)&num, 1);
-					/*recv.u8[0] = 1;
+				packetbuf_copyfrom((void*)&num_button_presses, 1);
+				if (num_button_presses == 1 || num_button_presses == 3) {
+					/*packetbuf_copyfrom((void*)&num_button_presses, 1);
+					recv.u8[0] = 1;
 					recv.u8[1] = 0;
 					printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
 					runicast_send(&runicast1, &recv, MAX_RETRANSMISSIONS);
@@ -125,23 +153,33 @@ PROCESS_THREAD(WaitCommand, ev, data) {
 					recv.u8[0] = 2;
 					printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
 					runicast_send(&runicast2, &recv, MAX_RETRANSMISSIONS);*/
+					printf("Sending command %d in broadcast\n", num_button_presses);
 					broadcast_send(&broadcast);
 				} else {
-					packetbuf_copyfrom((void*)&num, 1);
-					if (num == 4) {
+					//packetbuf_copyfrom((void*)&num_button_presses, 1);
+					//linkaddr_t recv;
+					if (num_button_presses == 4) {
 						recv.u8[0] = 1;
 						recv.u8[1] = 0;
-						printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
+						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
 						runicast_send(&runicast1, &recv, MAX_RETRANSMISSIONS);
-					} else if (num == 2 || num == 5) {
+					} else if (num_button_presses == 2 || num_button_presses == 5) {
 						recv.u8[0] = 2;
 						recv.u8[1] = 0;
-						printf("Sending command %d to %d.%d\n", num, recv.u8[0], recv.u8[1]);
+						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
 						runicast_send(&runicast2, &recv, MAX_RETRANSMISSIONS);
+					} else {
+						printf("Command not available\n");
+						printf("\nPOSSIBLE COMMANDS\n");
+						printf("1. Activate/deactivate the alarm signal\n");
+						printf("2. Lock/unlock the gate\n");
+						printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
+						printf("4. Obtain the average of the last 5 temperature values\n");
+						printf("5. Obtain the external light value\n\n");
 					}
 				}
 			}
-			num = 0;
+			num_button_presses = 0;
 		}
 	}
 	PROCESS_END();
