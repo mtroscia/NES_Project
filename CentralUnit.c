@@ -40,6 +40,10 @@
  * is off. Vice versa, the garden lights are off when the red LED is on, and the
  * green one is off.
  *
+ * The user can switch on Node4 that controls the sauna/steam bath by
+ * invoking command 6 on the CU, and can switch it off by invoking the same
+ * command once more. After the user decides the treatment (sauna or steam bath),
+ * the CU is informed and shows it.
  */
 
 #include "contiki.h"
@@ -51,8 +55,17 @@
 #define MAX_RETRANSMISSIONS 5
 
 static int last_command = 0;
+
+//disactivated alarm by default
 static int alarm = 0;
+
+//unlocked gate by default
 static int unlocked_gate = 1;
+
+//steam room off by default (and no treatment selected)
+static int steam_room_on = 0;
+static int steam_room_treatment = -1; //=0 sauna; =1 steam bath
+
 static process_event_t print;
 
 PROCESS(WaitCommandProcess, "Wait command");
@@ -74,7 +87,10 @@ static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8
 	printf("runicast message received from %d.%d, seqno %d\n", from->u8[0], from->u8[1], seqno);
 	int* data = (int*)packetbuf_dataptr();
 	int measure = *data;
-	if (last_command==4) {
+	//message from Node4 can arrive at any moment
+	if (from->u8[0]==4) {
+		steam_room_treatment = measure;
+	} else if (last_command==4) {
 		if (measure==-100)
 			printf("\nNo temperature measurements available yet\n");
 		else
@@ -104,7 +120,7 @@ static void timedout_runicast(struct runicast_conn *c, const linkaddr_t *to, uin
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv, broadcast_sent}; //Be careful to the order: receive callback always before send one (you should always specify both)
 static struct broadcast_conn broadcast;
 static const struct runicast_callbacks runicast_calls = {recv_runicast, sent_runicast, timedout_runicast};
-static struct runicast_conn runicast1, runicast2;
+static struct runicast_conn runicast1, runicast2, runicast4;
 
 AUTOSTART_PROCESSES(&WaitCommandProcess, &PrintCommandsProcess);
 
@@ -119,9 +135,14 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 	static struct etimer et;
 	static int num_button_presses = 0;
 
+	//open broadcast connection with Node1 and Node2
 	broadcast_open(&broadcast, 129, &broadcast_call);
+	//open broadcast connection with Node1
 	runicast_open(&runicast1, 144, &runicast_calls);
+	//open broadcast connection with Node2
 	runicast_open(&runicast2, 145, &runicast_calls);
+	//open broadcast connection with Node4
+	runicast_open(&runicast4, 146, &runicast_calls);
 	SENSORS_ACTIVATE(button_sensor);
 	print = process_alloc_event();
 
@@ -162,6 +183,14 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 						recv.u8[1] = 0;
 						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
 						runicast_send(&runicast2, &recv, MAX_RETRANSMISSIONS);
+					} else if (num_button_presses == 6 && alarm == 0) {
+						steam_room_on = (steam_room_on==0)? 1:0;
+						if (steam_room_on == 0)
+							steam_room_treatment = -1;
+						recv.u8[0] = 4;
+						recv.u8[1] = 0;
+						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
+						runicast_send(&runicast4, &recv, MAX_RETRANSMISSIONS);
 					} else {
 						printf("Command not available\n");
 						process_post(&PrintCommandsProcess, print, NULL);
@@ -188,10 +217,21 @@ PROCESS_THREAD(PrintCommandsProcess, ev, data) {
 			if (unlocked_gate==1)
 				printf("2. Lock the gate\n");
 			else
-				printf("2. Unock the gate\n");
+				printf("2. Unlock the gate\n");
 			printf("3. Open (and automatically close) both the door and the gate in order to let a guest enter\n");
 			printf("4. Obtain the average of the last 5 temperature values\n");
-			printf("5. Obtain the external light value\n\n");
+			printf("5. Obtain the external light value\n");
+			if (steam_room_on==0)
+				printf("6. Switch steam room on\n\n");
+			else {
+				printf("6. Switch steam room off");
+				if (steam_room_treatment==0)
+					printf(" (working as sauna)\n\n");
+				else if (steam_room_treatment==0)
+					printf(" (working as steam bath)\n\n");
+				else
+					printf("\n\n");
+			}
 		}
 	}
 

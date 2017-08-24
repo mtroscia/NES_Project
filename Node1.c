@@ -23,7 +23,6 @@
  * The garden lights are on when the green LED of Node1 is on, and the red one
  * is off. Vice versa, the garden lights are off when the red LED is on, and the
  * green one is off.
- *
  */
 
 #include "contiki.h"
