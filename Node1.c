@@ -32,6 +32,7 @@
 #include "dev/leds.h"
 #include "dev/button-sensor.h"
 #include "net/rime/rime.h"
+#include "lib/random.h"
 
 #define MAX_RETRANSMISSIONS 5
 
@@ -113,6 +114,7 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 	runicast_open(&runicast, 144, &runicast_calls);
 
 	SENSORS_ACTIVATE(button_sensor);
+
 	//start with outer lights off
 	outer_lights_off=1;
 	leds_on(LEDS_RED);
@@ -142,13 +144,20 @@ PROCESS_THREAD(TempProcess, ev, data) {
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_temp));
 
 		SENSORS_ACTIVATE(sht11_sensor);
+
 		//adjust the sensed value
 		temp = (sht11_sensor.value(SHT11_SENSOR_TEMP)/10-396)/10;
+		/*normalize: as RANDOM_RAND_MAX=65535, random_rand()/10000 returns
+		approximately 6 values --> +/-3 C*/
+		temp+=(int)random_rand()/10000;
+
 		SENSORS_DEACTIVATE(sht11_sensor);
 
 		temp_measurements[index]=temp;
 		index=(index+1)%5;
-		printf("Temperature: %d C\n", temp);
+
+		//printf("Temperature: %d C\n", temp);
+
 		etimer_reset(&et_temp);
 	}
 

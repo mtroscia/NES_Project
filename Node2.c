@@ -115,7 +115,7 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 	runicast_open(&runicast, 145, &runicast_calls);
 
 	//start with unlocked gate
-	unlocked_gate=1;
+	unlocked_gate = 1;
 	leds_on(LEDS_GREEN);
 
 	PROCESS_WAIT_EVENT_UNTIL(0);
@@ -162,7 +162,7 @@ PROCESS_THREAD(StopAlarmProcess, ev, data) {
 PROCESS_THREAD(GateUnlockProcess, ev, data) {
 	PROCESS_BEGIN();
 
-	unlocked_gate=(unlocked_gate==1)?0:1;
+	unlocked_gate = (unlocked_gate==1)? 0:1;
 	leds_toggle(LEDS_GREEN);
 	leds_toggle(LEDS_RED);
 

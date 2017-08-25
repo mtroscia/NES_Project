@@ -64,7 +64,7 @@ static int unlocked_gate = 1;
 
 //steam room off by default (and no treatment selected)
 static int steam_room_on = 0;
-static int steam_room_treatment = -1; //=0 sauna; =1 steam bath
+static int steam_room_treatment = 0; //=1 sauna; =2 steam bath
 
 static process_event_t print;
 
@@ -87,9 +87,14 @@ static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8
 	printf("runicast message received from %d.%d, seqno %d\n", from->u8[0], from->u8[1], seqno);
 	int* data = (int*)packetbuf_dataptr();
 	int measure = *data;
+
 	//message from Node4 can arrive at any moment
 	if (from->u8[0]==4) {
 		steam_room_treatment = measure;
+		if (measure==0) {
+			steam_room_on = 0;
+			printf("\nThe steam room have been automatically turned off\n");
+		}
 	} else if (last_command==4) {
 		if (measure==-100)
 			printf("\nNo temperature measurements available yet\n");
@@ -109,7 +114,7 @@ static void sent_runicast(struct runicast_conn *c, const linkaddr_t *to, uint8_t
 	/*command 4 and 5 require a response and so you have to wait it before accepting
 	a new command; command 2 does not require any response and so the CU is able
 	to accept a new command as soon as the message is sent*/
-	if (last_command==2)
+	if (last_command==2 || last_command==6)
 		process_post(&PrintCommandsProcess, print, NULL);
 }
 
@@ -143,7 +148,9 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 	runicast_open(&runicast2, 145, &runicast_calls);
 	//open broadcast connection with Node4
 	runicast_open(&runicast4, 146, &runicast_calls);
+
 	SENSORS_ACTIVATE(button_sensor);
+
 	print = process_alloc_event();
 
 	//print available commands
@@ -156,7 +163,9 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 			etimer_set(&et, 4*CLOCK_SECOND);
 		} else if (etimer_expired(&et)) {
 			last_command = num_button_presses;
-			if(!runicast_is_transmitting(&runicast1) && !runicast_is_transmitting(&runicast2)) {
+			if(!runicast_is_transmitting(&runicast1)
+					&& !runicast_is_transmitting(&runicast2)
+					&& !runicast_is_transmitting(&runicast4)) {
 				linkaddr_t recv;
 				packetbuf_copyfrom((void*)&num_button_presses, 1);
 				if (num_button_presses == 1 || num_button_presses == 3) {
@@ -176,7 +185,8 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 						recv.u8[1] = 0;
 						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
 						runicast_send(&runicast1, &recv, MAX_RETRANSMISSIONS);
-					} else if ((num_button_presses == 2 || num_button_presses == 5) && alarm == 0) {
+					} else if ((num_button_presses == 2 || num_button_presses == 5)
+							&& alarm == 0) {
 						if (num_button_presses ==2)
 							unlocked_gate = (unlocked_gate==1)?0:1;
 						recv.u8[0] = 2;
@@ -186,13 +196,13 @@ PROCESS_THREAD(WaitCommandProcess, ev, data) {
 					} else if (num_button_presses == 6 && alarm == 0) {
 						steam_room_on = (steam_room_on==0)? 1:0;
 						if (steam_room_on == 0)
-							steam_room_treatment = -1;
+							steam_room_treatment = 0;
 						recv.u8[0] = 4;
 						recv.u8[1] = 0;
 						printf("Sending command %d to %d.%d\n", num_button_presses, recv.u8[0], recv.u8[1]);
 						runicast_send(&runicast4, &recv, MAX_RETRANSMISSIONS);
 					} else {
-						printf("Command not available\n");
+						printf("Command %d not available\n", num_button_presses);
 						process_post(&PrintCommandsProcess, print, NULL);
 					}
 				}
@@ -225,9 +235,9 @@ PROCESS_THREAD(PrintCommandsProcess, ev, data) {
 				printf("6. Switch steam room on\n\n");
 			else {
 				printf("6. Switch steam room off");
-				if (steam_room_treatment==0)
+				if (steam_room_treatment==1)
 					printf(" (working as sauna)\n\n");
-				else if (steam_room_treatment==0)
+				else if (steam_room_treatment==2)
 					printf(" (working as steam bath)\n\n");
 				else
 					printf("\n\n");
