@@ -3,11 +3,11 @@
  * (these treatments require different ranges of temperature and humidity).
  * The user can start this sensor by invoking the command 6 on the CU and can
  * stop it by invoking the same command.
- * Node4 monitors the temperature and the humidity every 5 seconds.
  * By pressing the button of Node4 once, the sauna is selected and  by pressing
  * it twice, the steam bath is selected. The command is actually determined when
  * 3 seconds have elapsed since the last button press. After that, a message is
- * sent to the CU to inform it about the choice.
+ * sent to the CU to inform it about the choice. At this point, Node4 starts
+ * monitoring the temperature and the humidity every 5 seconds.
  * Node4 provides a protection mechanism:
  * 		-) 	after 1 minute from when the node is switched on, Node4	is switched
  * 			off automatically and CU is informed (in a real situation it would
@@ -16,6 +16,7 @@
  * 		-)	if the temperature or the humidity are above the maximum thresholds
  * 			for 3 consecutive measurements, Node4 is switched off automatically
  * 			and CU is informed.
+ * The green led on indicates that the steam room is on.
  */
 
 #include "contiki.h"
@@ -23,6 +24,7 @@
 #include "sys/etimer.h"
 #include "dev/sht11/sht11-sensor.h"
 #include "dev/button-sensor.h"
+#include "dev/leds.h"
 #include "net/rime/rime.h"
 #include "lib/random.h"
 
@@ -54,10 +56,12 @@ static void recv_runicast(struct runicast_conn *c, const linkaddr_t *from, uint8
 		if (steam_room_on == 0) {
 			printf("Steam room is switching off...\n");
 			steam_room_treatment = 0;
+			leds_off(LEDS_GREEN);
 			process_exit(&TimeoutProcess);
 			process_exit(&MeasurementProcess);
 		} else {
 			printf("Steam room is switching on...\n");
+			leds_on(LEDS_GREEN);
 			process_start(&TimeoutProcess, NULL);
 			process_start(&MeasurementProcess, NULL);
 		}
@@ -128,6 +132,7 @@ PROCESS_THREAD(SwitchOffProcess, ev, data) {
 
 	steam_room_on = 0;
 	steam_room_treatment = 0;
+	leds_off(LEDS_GREEN);
 
 	//inform the CU about the automatic switch off
 	if(!runicast_is_transmitting(&runicast)){

@@ -117,8 +117,8 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>72.16758374159737</x>
-        <y>56.714496097346036</y>
+        <x>63.36722772647629</x>
+        <y>54.842079923916025</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -135,8 +135,8 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>72.66377095242565</x>
-        <y>52.29387554930859</y>
+        <x>75.47239521257066</x>
+        <y>55.10249980945362</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -153,8 +153,8 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>66.28358395760664</x>
-        <y>55.16972888596078</y>
+        <x>63.287718080118594</x>
+        <y>50.20782602637123</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -171,8 +171,8 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>68.9857563226268</x>
-        <y>52.07601057680348</y>
+        <x>68.7985147052838</x>
+        <y>50.016352786030474</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -189,7 +189,7 @@
   <plugin>
     org.contikios.cooja.plugins.SimControl
     <width>289</width>
-    <z>1</z>
+    <z>0</z>
     <height>160</height>
     <location_x>314</location_x>
     <location_y>2</location_y>
@@ -205,7 +205,7 @@
       <viewport>10.681386052846701 0.0 0.0 10.681386052846701 -594.5066425140367 -439.5167003356933</viewport>
     </plugin_config>
     <width>298</width>
-    <z>8</z>
+    <z>4</z>
     <height>266</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -218,7 +218,7 @@
       <coloring />
     </plugin_config>
     <width>536</width>
-    <z>0</z>
+    <z>8</z>
     <height>293</height>
     <location_x>609</location_x>
     <location_y>1</location_y>
@@ -236,7 +236,7 @@
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
     <width>1160</width>
-    <z>5</z>
+    <z>9</z>
     <height>171</height>
     <location_x>0</location_x>
     <location_y>489</location_y>
@@ -262,10 +262,10 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>7</z>
+    <z>5</z>
     <height>126</height>
-    <location_x>741</location_x>
-    <location_y>304</location_y>
+    <location_x>406</location_x>
+    <location_y>303</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.MoteInterfaceViewer
@@ -275,10 +275,10 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>6</z>
+    <z>7</z>
     <height>127</height>
-    <location_x>377</location_x>
-    <location_y>298</location_y>
+    <location_x>16</location_x>
+    <location_y>301</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.MoteInterfaceViewer
@@ -288,10 +288,10 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>4</z>
+    <z>6</z>
     <height>118</height>
-    <location_x>378</location_x>
-    <location_y>434</location_y>
+    <location_x>16</location_x>
+    <location_y>429</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.MoteInterfaceViewer
@@ -301,10 +301,23 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>3</z>
+    <z>1</z>
     <height>134</height>
-    <location_x>12</location_x>
-    <location_y>305</location_y>
+    <location_x>789</location_x>
+    <location_y>302</location_y>
+  </plugin>
+  <plugin>
+    org.contikios.cooja.plugins.MoteInterfaceViewer
+    <mote_arg>3</mote_arg>
+    <plugin_config>
+      <interface>Sky LED</interface>
+      <scrollpos>0,0</scrollpos>
+    </plugin_config>
+    <width>350</width>
+    <z>3</z>
+    <height>125</height>
+    <location_x>792</location_x>
+    <location_y>445</location_y>
   </plugin>
 </simconf>
 
