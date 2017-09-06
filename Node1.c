@@ -110,21 +110,26 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 
 	PROCESS_BEGIN();
 
+	//open broadcast connection with Node2 and CU
 	broadcast_open(&broadcast, 129, &broadcast_call);
+
+	//open runicast connection with CU
 	runicast_open(&runicast, 144, &runicast_calls);
 
 	SENSORS_ACTIVATE(button_sensor);
 
 	//start with outer lights off
-	outer_lights_off=1;
+	outer_lights_off = 1;
 	leds_on(LEDS_RED);
 
 	while(1){
 		//when the button is pressed, switch on/off the outer lights
 		PROCESS_WAIT_EVENT_UNTIL(ev==sensors_event && data==&button_sensor);
-		outer_lights_off=(outer_lights_off==1)?0:1;
-		leds_toggle(LEDS_GREEN);
-		leds_toggle(LEDS_RED);
+		if (alarm==0) {
+			outer_lights_off= (outer_lights_off==1)? 0:1;
+			leds_toggle(LEDS_GREEN);
+			leds_toggle(LEDS_RED);
+		}
 	}
 
 	PROCESS_END();
@@ -147,9 +152,9 @@ PROCESS_THREAD(TempProcess, ev, data) {
 
 		//adjust the sensed value
 		temp = (sht11_sensor.value(SHT11_SENSOR_TEMP)/10-396)/10;
-		/*normalize: as RANDOM_RAND_MAX=65535, random_rand()/10000 returns
+		/*randomize: as RANDOM_RAND_MAX=65535, random_rand()/10000 returns
 		approximately 6 values --> +/-3 C*/
-		temp+=(int)random_rand()/10000;
+		temp += (int)random_rand()/10000;
 
 		SENSORS_DEACTIVATE(sht11_sensor);
 
@@ -219,12 +224,10 @@ PROCESS_THREAD(StopBlinkingProcess, ev, data) {
 	static struct etimer et_stop_blinking;
 	PROCESS_BEGIN();
 
+	//blinking must last 16 seconds
 	etimer_set(&et_stop_blinking, 16*CLOCK_SECOND);
 	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_stop_blinking));
 	process_exit(&BlinkingProcess);
-
-	//restore the led state
-	leds_set(led_status);
 
 	PROCESS_END();
 }
@@ -235,6 +238,7 @@ PROCESS_THREAD(OpenDoorProcess, ev, data) {
 
 	led_status = leds_get();
 
+	//Node1 has to wait 14 seconds before start blinking
 	etimer_set(&et_door, 14*CLOCK_SECOND);
 
 	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_door));
@@ -254,20 +258,21 @@ PROCESS_THREAD(SendTempProcess, ev, data) {
 	int i;
 	for (i=0; i<5; i++) {
 		if (temp_measurements[i]!=-100) {
-			sum+=temp_measurements[i];
+			sum += temp_measurements[i];
 			num_elements++;
 		}
 	}
+
 	int avg = -100;
 	if (num_elements!=0)
 		avg = sum/num_elements;
 
-	//transmit the avg of measurements to the CU
+	//transmit the avg of temperature measurements to the CU
 	if(!runicast_is_transmitting(&runicast)){
 		linkaddr_t recv;
 		recv.u8[0] = 3;
 		recv.u8[1] = 0;
-		packetbuf_copyfrom((void*)&avg, 1);
+		packetbuf_copyfrom((void*)&avg, sizeof(int));
 		printf("Sending temperature %d C to %d.%d\n", avg, recv.u8[0], recv.u8[1]);
 		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 	}

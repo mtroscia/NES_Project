@@ -189,7 +189,7 @@
   <plugin>
     org.contikios.cooja.plugins.SimControl
     <width>289</width>
-    <z>0</z>
+    <z>3</z>
     <height>160</height>
     <location_x>314</location_x>
     <location_y>2</location_y>
@@ -205,7 +205,7 @@
       <viewport>10.681386052846701 0.0 0.0 10.681386052846701 -594.5066425140367 -439.5167003356933</viewport>
     </plugin_config>
     <width>298</width>
-    <z>4</z>
+    <z>6</z>
     <height>266</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -218,7 +218,7 @@
       <coloring />
     </plugin_config>
     <width>536</width>
-    <z>8</z>
+    <z>5</z>
     <height>293</height>
     <location_x>609</location_x>
     <location_y>1</location_y>
@@ -249,7 +249,7 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>290</width>
-    <z>2</z>
+    <z>1</z>
     <height>123</height>
     <location_x>315</location_x>
     <location_y>171</location_y>
@@ -262,7 +262,7 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>5</z>
+    <z>7</z>
     <height>126</height>
     <location_x>406</location_x>
     <location_y>303</location_y>
@@ -275,7 +275,7 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>7</z>
+    <z>8</z>
     <height>127</height>
     <location_x>16</location_x>
     <location_y>301</location_y>
@@ -288,7 +288,7 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>6</z>
+    <z>2</z>
     <height>118</height>
     <location_x>16</location_x>
     <location_y>429</location_y>
@@ -301,7 +301,7 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>1</z>
+    <z>0</z>
     <height>134</height>
     <location_x>789</location_x>
     <location_y>302</location_y>
@@ -314,10 +314,10 @@
       <scrollpos>0,0</scrollpos>
     </plugin_config>
     <width>350</width>
-    <z>3</z>
+    <z>4</z>
     <height>125</height>
-    <location_x>792</location_x>
-    <location_y>445</location_y>
+    <location_x>790</location_x>
+    <location_y>438</location_y>
   </plugin>
 </simconf>
 

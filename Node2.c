@@ -111,7 +111,10 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 
 	PROCESS_BEGIN();
 
+	//open broadcast connection with Node1 and CU
 	broadcast_open(&broadcast, 129, &broadcast_call);
+
+	//open runicast connection with CU
 	runicast_open(&runicast, 145, &runicast_calls);
 
 	//start with unlocked gate
@@ -211,12 +214,12 @@ PROCESS_THREAD(SendLightProcess, ev, data) {
 	int light = 10*light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC)/7;
 	SENSORS_DEACTIVATE(light_sensor);
 
-	//transmit the measurement to the CU
+	//transmit the light measurement to the CU
 	if(!runicast_is_transmitting(&runicast)){
 		linkaddr_t recv;
 		recv.u8[0] = 3;
 		recv.u8[1] = 0;
-		packetbuf_copyfrom((void*)&light, 1);
+		packetbuf_copyfrom((void*)&light, sizeof(int));
 		printf("Sending light %d lux to %d.%d\n", light, recv.u8[0], recv.u8[1]);
 		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 	}

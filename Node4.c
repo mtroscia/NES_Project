@@ -89,6 +89,7 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 
 	static int button_presses = 0;
 
+	//open runicast connection with CU
 	runicast_open(&runicast, 146, &runicast_calls);
 
 	SENSORS_ACTIVATE(button_sensor);
@@ -98,6 +99,8 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 
 		if (ev==sensors_event && data==&button_sensor) {
 			if (steam_room_on == 0)
+				/* if steam room is off suppress the possibility to accept the
+				 button press command */
 				button_presses = 0;
 			else {
 				button_presses++;
@@ -112,7 +115,7 @@ PROCESS_THREAD(BaseProcess, ev, data) {
 					linkaddr_t recv;
 					recv.u8[0] = 3;
 					recv.u8[1] = 0;
-					packetbuf_copyfrom((void*)&steam_room_treatment, 1);
+					packetbuf_copyfrom((void*)&steam_room_treatment, sizeof(int));
 					printf("Sending treatment %d to %d.%d\n", steam_room_treatment, recv.u8[0], recv.u8[1]);
 					runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 				}
@@ -139,7 +142,7 @@ PROCESS_THREAD(SwitchOffProcess, ev, data) {
 		linkaddr_t recv;
 		recv.u8[0] = 3;
 		recv.u8[1] = 0;
-		packetbuf_copyfrom((void*)&steam_room_treatment, 1);
+		packetbuf_copyfrom((void*)&steam_room_treatment, sizeof(int));
 		printf("Sending stop treatment to %d.%d\n", recv.u8[0], recv.u8[1]);
 		runicast_send(&runicast, &recv, MAX_RETRANSMISSIONS);
 	}
@@ -174,9 +177,9 @@ PROCESS_THREAD(MeasurementProcess, ev, data) {
 
 		/*	TEMPERATURE: add MAX_TEMP_SAUNA-24 or MAX_TEMP_STEAM_BATH-24 to
 		 	work next to the threshold
-			HUMIDITY: remove 116-MAX_HUM_SAUNA or 116-MAX_HUM_STEAM_BATH+1 to
+			HUMIDITY: remove 116-MAX_HUM_SAUNA or 116-MAX_HUM_STEAM_BATH to
 			work next to the threshold
-			NORMALIZE: as RANDOM_RAND_MAX=65535, random_rand()/6000 returns
+			RANDOMIZE: as RANDOM_RAND_MAX=65535, random_rand()/6000 returns
 			approximately 10 values --> +/-5 C
 		*/
 		if (steam_room_treatment==1) {
@@ -196,7 +199,7 @@ PROCESS_THREAD(MeasurementProcess, ev, data) {
 			if (temp > MAX_TEMPERATURE_SAUNA) {
 				count_temp_overcome_sauna++;
 				if (count_temp_overcome_sauna==3) {
-					printf("\nTemperature is too high!\nSteam room is switching off...\n\n");
+					printf("Temperature is too high!\nSteam room is switching off...\n\n");
 					process_exit(&TimeoutProcess);
 					process_start(&SwitchOffProcess, NULL);
 					PROCESS_EXIT();
@@ -206,7 +209,7 @@ PROCESS_THREAD(MeasurementProcess, ev, data) {
 			if (hum > MAX_HUMIDITY_SAUNA) {
 				count_hum_overcome_sauna++;
 				if (count_hum_overcome_sauna==3) {
-					printf("Humidity is too high\nSteam room is switching off...\n\n");
+					printf("Humidity is too high!\nSteam room is switching off...\n\n");
 					process_exit(&TimeoutProcess);
 					process_start(&SwitchOffProcess, NULL);
 					PROCESS_EXIT();
@@ -219,7 +222,7 @@ PROCESS_THREAD(MeasurementProcess, ev, data) {
 			if (temp > MAX_TEMPERATURE_STEAM_BATH) {
 				count_temp_overcome_steam_bath++;
 				if (count_temp_overcome_steam_bath==3) {
-					printf("Temperature is too high\nSteam room is switching off...\n\n");
+					printf("Temperature is too high!\nSteam room is switching off...\n\n");
 					process_exit(&TimeoutProcess);
 					process_start(&SwitchOffProcess, NULL);
 					PROCESS_EXIT();
@@ -229,7 +232,7 @@ PROCESS_THREAD(MeasurementProcess, ev, data) {
 			if (hum > MAX_HUMIDITY_STEAM_BATH) {
 				count_hum_overcome_steam_bath++;
 				if (count_hum_overcome_steam_bath==3) {
-					printf("Humidity is too high\nSteam room is switching off...\n\n");
+					printf("Humidity is too high!\nSteam room is switching off...\n\n");
 					process_exit(&TimeoutProcess);
 					process_start(&SwitchOffProcess, NULL);
 					PROCESS_EXIT();
